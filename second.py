@@ -17,7 +17,7 @@ class Connector:
                 host='localhost',
                 password='odoo'
             )
-            print("Connected to PostgreSQL")
+            #print("Connected to PostgreSQL")
             cls.psqlCursor = cls.psqlConnection.cursor()
 
         except:
@@ -28,7 +28,7 @@ class Connector:
         if cls.psqlConnection is not None:
             cls.psqlCursor.close()
             cls.psqlConnection.close()
-            print("Disconnected from PostgreSQL")
+            #print("Disconnected from PostgreSQL")
 
     @classmethod
     def Insert(cls, f_name, py_name, t_s, t_d, is_f):
@@ -48,29 +48,38 @@ class Connector:
         function_call_records = cls.psqlCursor.fetchall()
         return function_call_records
 
-def function_info(func):
-    def wrapper(*args, **kwargs):
+    def __init__(self, func):
+        self.func = func
+
+    def __call__(self, *params, **kwargs):
         Connector.Connect()
         frame = inspect.stack()[1]
         module = inspect.getmodule(frame[0])
         py_file_name = module.__file__
         first_call = True
         for record in Connector.Select():
-            if record[0]==func.__name__:
+            if record[0]==self.func.__name__:
                 first_call=False
                 break
-        Connector.Insert(func.__name__,
+        Connector.Insert(self.func.__name__,
                         py_file_name, time.ctime(),
                         datetime.now().strftime("%d-%b-%Y (%H:%M:%S.%f)"),
                         first_call)
-        func(*args, **kwargs)
+        self.func(*params, **kwargs)
         Connector.Disconnect()
-    return wrapper
+
 
 if __name__ == '__main__':
-    # pass
-    @function_info
+    #pass
+
+    @Connector
     def test_function(a, b):
         print("TESTING", a, b)
 
     test_function(1,2)
+
+    @Connector
+    def silly_function(*params):
+        print("silly TESTING", *params)
+
+    silly_function("silly", "func")
